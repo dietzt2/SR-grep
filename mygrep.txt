@@ -1,0 +1,67 @@
+#mygrep.sr
+#written by: Tyler Dietz
+#class: CPSC 330
+#date: 2/12/2016
+
+resource mygrep ()
+
+  const MAX_STRING := 20
+  const MAX_FILENAME := 20
+  const MAX_LINE := 120
+  var line[2]:string[MAX_LINE]
+  var buffer : string [MAX_LINE]
+  sem empty := 1
+  sem full := 0
+  var pattern:string[MAX_STRING]; getarg(1,pattern)
+  var filename:string[MAX_FILENAME]; getarg(2,filename)
+  var done:bool := false
+  var fd: file := open(filename, READ)
+
+  procedure consumer (pattern: string[*])
+   # write ("here")
+    do true ->
+      P(full)
+      if done ->
+        return
+      fi
+      line[1] := buffer
+      V(empty)
+
+      var i := 1, plen := length(pattern)
+      do i <= (length(line[1]) - plen +1) ->
+        if pattern = line[1][i:i+plen-1] ->
+          write(filename || ":", line[1])
+        fi
+        i +:= 1
+      od
+    #write("yupp")
+    od
+  end
+
+  procedure doread(ln: int) returns result:int
+
+    result:= read(fd, line[ln])
+  end
+
+  procedure producer()
+    var result :int
+    do true ->
+      result := doread(2) #into line[2]
+      if result = EOF ->
+        done := true
+        V(full)
+        return
+      fi
+
+      P(empty) #wait for buffer to be empty
+      buffer := line[2]
+      V(full) ;# write("buffer is: ",buffer)
+    od
+  end
+
+  #while inside co
+  co consumer (pattern)
+  // producer()
+  oc
+
+end mygrep
